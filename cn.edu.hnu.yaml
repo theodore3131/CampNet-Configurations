@@ -189,20 +189,20 @@ actions:
       offcampus_if_failed: true
       script: |
         if (!resp) {
-            vars.status = 'offline';
-          } else {
-            var info = resp.split(',');
+          vars.status = 'offline';
+        } else {
+          var info = resp.split(',');
 
-            vars.status = 'online';
-            vars.online_username = info[0];
-          }
-          var logoutCallback = function(response) {
-            if (response.error == "ok") {
-              return callback({
-                      error: "ok",
-                      message: ""
-                  });
-              }
+          vars.status = 'online';
+          vars.online_username = info[0];
+        }
+        var logoutCallback = function(response) {
+          if (response.error == "ok") {
+            return callback({
+                    error: "ok",
+                    message: ""
+                });
+            }
           # Process Error Message
           var message = error(response.ecode, response.error, response.error_msg);
           return callback({
@@ -233,7 +233,7 @@ actions:
         username: "{username}"
         ac_id: "{ac_id}"
         ip: "{ip}"
-        callback: logoutCallback
+        callback: callback
       offcampus_if_failed: true
       script: |
         if (resp != 'logout_ok' && resp != 'login_error#You are not online.') {
