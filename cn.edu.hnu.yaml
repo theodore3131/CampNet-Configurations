@@ -218,8 +218,9 @@ actions:
     - url: http://10.62.106.217/cgi-bin/srun_portal
       params:
         action: logout
-        ip: ""
-        username: "{username}"
+    		username: "{username}"
+    		ac_id: "{ac_id}"
+    		ip: "{ip}"
       offcampus_if_failed: true
       script: |
         if (resp != 'logout_ok' && resp != 'login_error#You are not online.') {
