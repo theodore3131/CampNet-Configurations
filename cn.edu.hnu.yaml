@@ -196,20 +196,6 @@ actions:
           vars.status = 'online';
           vars.online_username = info[0];
         }
-        var logoutCallback = function(response) {
-          if (response.error == "ok") {
-            return callback({
-                    error: "ok",
-                    message: ""
-                });
-            }
-          # Process Error Message
-          var message = error(response.ecode, response.error, response.error_msg);
-          return callback({
-            error: "fail",
-            message: message
-          });
-        };
 
   # Expected vars:
   # - name
