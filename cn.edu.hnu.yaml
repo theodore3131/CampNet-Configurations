@@ -20,8 +20,7 @@ actions:
     - url: http://10.62.106.217/cgi-bin/get_challenge
       params:
         username: "{username}"
-        ip: ""
-        double_stack: "1"
+        ip: "{data.ip}"
         callback: callback
       offcampus_if_failed: true
       script: |
@@ -150,15 +149,14 @@ actions:
     - url: http://10.62.106.217/cgi-bin/srun_portal
       params:
         action: login
-        ac_id: "{ac_id}"
-        n: "{n}"
-        type: "{type}"
-        ip: "{ip}"
-        double_stack: "1"
         username: "{username}"
         password: "{password_hmd5}"
-        info: "{info}"
+        ac_id: "{ac_id}"
+        ip: "{ip}"
         chksum: "{chksum}"
+        info: "{info}"
+        n: "{n}"
+        type: "{type}"
         callback: callback
       offcampus_if_failed: true
       script: |
@@ -191,13 +189,27 @@ actions:
       offcampus_if_failed: true
       script: |
         if (!resp) {
-          vars.status = 'offline';
-        } else {
-          var info = resp.split(',');
+            vars.status = 'offline';
+          } else {
+            var info = resp.split(',');
 
-          vars.status = 'online';
-          vars.online_username = info[0];
-        }
+            vars.status = 'online';
+            vars.online_username = info[0];
+          }
+          var logoutCallback = function(response) {
+            if (response.error == "ok") {
+              return callback({
+                      error: "ok",
+                      message: ""
+                  });
+              }
+          # Process Error Message
+          var message = error(response.ecode, response.error, response.error_msg);
+          return callback({
+            error: "fail",
+            message: message
+          });
+        };
 
   # Expected vars:
   # - name
@@ -218,9 +230,10 @@ actions:
     - url: http://10.62.106.217/cgi-bin/srun_portal
       params:
         action: logout
-    		username: "{username}"
-    		ac_id: "{ac_id}"
-    		ip: "{ip}"
+        username: "{username}"
+        ac_id: "{ac_id}"
+        ip: "{ip}"
+        callback: logoutCallback
       offcampus_if_failed: true
       script: |
         if (resp != 'logout_ok' && resp != 'login_error#You are not online.') {
