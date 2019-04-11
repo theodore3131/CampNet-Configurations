@@ -1,0 +1,227 @@
+ssids:
+  - Tsinghua-IPv4
+
+decimal_units: true
+
+# Default vars:
+# - username
+# - password
+actions:
+  login:
+    - url: http://10.62.106.217
+      offcampus_if_failed: true
+      script: |
+        var matches = /index_(\d+)/.exec(resp);
+        if (!matches) {
+          throw 'unknown: ' + resp;
+        }
+        vars.ac_id = matches[1];
+
+    - url: http://10.62.106.217/cgi-bin/get_challenge
+      params:
+        username: "{username}"
+        ip: ""
+        double_stack: "1"
+        callback: callback
+      offcampus_if_failed: true
+      script: |
+        var data = JSON.parse(resp.substring(9, resp.length - 1));
+        if (data.res != 'ok') {
+          throw 'unknown: ' + data.error;
+        }
+
+        var keyStr = 'LVoJPiCN2R8G90yg' +
+                     '+hmFHuacZ1OWMnrs' +
+                     'STXkYpUq/3dlbfKw' +
+                     'v6xztjI7DeBE45QA' +
+                     '=';
+        function encode64(input) {
+          var output = '';
+          var chr1, chr2, chr3 = '';
+          var enc1, enc2, enc3, enc4 = '';
+          var i = 0;
+
+          do {
+            chr1 = input.charCodeAt(i++);
+            chr2 = input.charCodeAt(i++);
+            chr3 = input.charCodeAt(i++);
+
+            enc1 = chr1 >> 2;
+            enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
+            enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
+            enc4 = chr3 & 63;
+
+            if (isNaN(chr2)) {
+               enc3 = enc4 = 64;
+            } else if (isNaN(chr3)) {
+               enc4 = 64;
+            }
+
+            output = output +
+               keyStr.charAt(enc1) +
+               keyStr.charAt(enc2) +
+               keyStr.charAt(enc3) +
+               keyStr.charAt(enc4);
+            chr1 = chr2 = chr3 = '';
+            enc1 = enc2 = enc3 = enc4 = '';
+          } while (i < input.length);
+
+          return output;
+        }
+
+        function xEncode(str, key) {
+          if (str == '') {
+            return '';
+          }
+          var v = s(str, true),
+            k = s(key, false);
+          if (k.length < 4) {
+            k.length = 4;
+          }
+          var n = v.length - 1,
+            z = v[n],
+            y = v[0],
+            c = 0x86014019 | 0x183639A0,
+            m,
+            e,
+            p,
+            q = Math.floor(6 + 52 / (n + 1)),
+            d = 0;
+          while (0 < q--) {
+            d = d + c & (0x8CE0D9BF | 0x731F2640);
+            e = d >>> 2 & 3;
+            for (p = 0; p < n; p++) {
+              y = v[p + 1];
+              m = z >>> 5 ^ y << 2;
+              m += (y >>> 3 ^ z << 4) ^ (d ^ y);
+              m += k[(p & 3) ^ e] ^ z;
+              z = v[p] = v[p] + m & (0xEFB8D130 | 0x10472ECF);
+            }
+            y = v[0];
+            m = z >>> 5 ^ y << 2;
+            m += (y >>> 3 ^ z << 4) ^ (d ^ y);
+            m += k[(p & 3) ^ e] ^ z;
+            z = v[n] = v[n] + m & (0xBB390742 | 0x44C6F8BD);
+          }
+
+          function s(a, b) {
+            var c = a.length,
+              v = [];
+            for (var i = 0; i < c; i += 4) {
+              v[i >> 2] = a.charCodeAt(i) | a.charCodeAt(i + 1) << 8 | a.charCodeAt(i + 2) << 16 | a.charCodeAt(i + 3) << 24;
+            }
+            if (b) {
+              v[v.length] = c;
+            }
+            return v;
+          }
+
+          function l(a, b) {
+            var d = a.length,
+              c = (d - 1) << 2;
+            if (b) {
+              var m = a[d - 1];
+              if ((m < c - 3) || (m > c))
+                return null;
+              c = m;
+            }
+            for (var i = 0; i < d; i++) {
+              a[i] = String.fromCharCode(a[i] & 0xff, a[i] >>> 8 & 0xff, a[i] >>> 16 & 0xff, a[i] >>> 24 & 0xff);
+            }
+            if (b) {
+              return a.join('').substring(0, c);
+            } else {
+              return a.join('');
+            }
+          }
+
+          return l(v, false);
+        }
+
+        var token = data.challenge;
+        var hmd5 = '00000000000000000000000000000000';
+
+        vars.n = '200';
+        vars.type = '1';
+        vars.ip = '';
+        vars.info = '{SRBX1}' + encode64(xEncode(JSON.stringify({ 'username': vars.username, 'password': vars.password, 'ip': vars.ip, 'acid': vars.ac_id, 'enc_ver': 'srun_bx1' }), token));
+        vars.password_hmd5 = '{MD5}' + hmd5;
+        vars.chksum = sha1(token + [vars.username, hmd5, vars.ac_id, vars.ip, vars.n, vars.type, vars.info].join(token));
+    - url: http://10.62.106.217/cgi-bin/srun_portal
+      params:
+        action: login
+        ac_id: "{ac_id}"
+        n: "{n}"
+        type: "{type}"
+        ip: "{ip}"
+        double_stack: "1"
+        username: "{username}"
+        password: "{password_hmd5}"
+        info: "{info}"
+        chksum: "{chksum}"
+        callback: callback
+      offcampus_if_failed: true
+      script: |
+        var data = JSON.parse(resp.substring(9, resp.length - 1));
+
+        if (data.error != 'ok' && data.error != 'ip_already_online_error') {
+          var matches = /E(\d+)/.exec(data.ecode);
+
+          var n = NaN;
+          if (matches) {
+            n = Number(matches[1]);
+          }
+
+          switch (n) {
+            case 2531:
+            case 2553:
+            case 2606: throw 'unauthorized';
+            case 2616:
+            case 3001:
+            case 3004: throw 'arrears';
+            default: throw 'unknown: ' + resp;
+          }
+        }
+
+  # Expected vars:
+  # - status (online | offline | offcampus) (*)
+  # - online_username
+  status:
+    - url: http://10.62.106.217/cgi-bin/rad_user_info
+      offcampus_if_failed: true
+      script: |
+        if (!resp) {
+          vars.status = 'offline';
+        } else {
+          var info = resp.split(',');
+
+          vars.status = 'online';
+          vars.online_username = info[0];
+        }
+
+  # Expected vars:
+  # - name
+  # - balance
+  # - data_balance
+  # - usage
+  # - free_usage
+  # - max_usage
+  # - sessions
+  #   - ip (*)
+  #   - id
+  #   - start_time
+  #   - usage
+  #   - mac
+  #   - device
+  
+  logout:
+    - url: http://10.62.106.217/cgi-bin/srun_portal
+      params:
+        action: logout
+        ip: ""
+        username: "{username}"
+      offcampus_if_failed: true
+      script: |
+        if (resp != 'logout_ok' && resp != 'login_error#You are not online.') {
+          throw 'unknown: ' + resp;
+        }
